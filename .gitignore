@@ -1,0 +1,24 @@
+# Internal planning — never commit
+plan/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.output/
+.wxt/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Env
+.env
+.env.local
+.env.*.local
