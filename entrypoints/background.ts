@@ -15,6 +15,10 @@ function isSplitPageUrl(url: string | undefined): boolean {
   return !!url && url.startsWith(splitPagePrefix());
 }
 
+function isFrameableUrl(url: string): boolean {
+  return url.startsWith("http://") || url.startsWith("https://");
+}
+
 async function addDnrRuleForTab(tabId: number): Promise<void> {
   await chrome.declarativeNetRequest.updateSessionRules({
     removeRuleIds: [tabId],
@@ -63,8 +67,12 @@ export default defineBackground(() => {
     console.error("[panes] sync rules failed", error),
   );
 
-  chrome.action.onClicked.addListener(async () => {
-    const url = chrome.runtime.getURL(`${SPLIT_PATH}?layout=4`);
+  chrome.action.onClicked.addListener(async (sourceTab) => {
+    const params = new URLSearchParams({ layout: "4" });
+    if (sourceTab.url && isFrameableUrl(sourceTab.url)) {
+      params.set("pane1", sourceTab.url);
+    }
+    const url = chrome.runtime.getURL(`${SPLIT_PATH}?${params}`);
     const tab = await chrome.tabs.create({ url });
     if (tab.id !== undefined) {
       await addDnrRuleForTab(tab.id);

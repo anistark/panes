@@ -1,3 +1,8 @@
+type PanesCommand =
+  | { type: "panes:back" }
+  | { type: "panes:forward" }
+  | { type: "panes:reload" };
+
 export default defineContentScript({
   matches: ["<all_urls>"],
   allFrames: true,
@@ -30,6 +35,28 @@ export default defineContentScript({
       },
       true,
     );
+
+    window.addEventListener("message", (event) => {
+      // Only accept commands from a chrome-extension parent (our split page).
+      // Sandboxed iframes embedded by random sites won't pass this check.
+      if (!event.origin.startsWith("chrome-extension://")) return;
+      if (event.source !== window.parent) return;
+
+      const data = event.data as Partial<PanesCommand> | null;
+      if (!data || typeof data.type !== "string") return;
+
+      switch (data.type) {
+        case "panes:back":
+          history.back();
+          break;
+        case "panes:forward":
+          history.forward();
+          break;
+        case "panes:reload":
+          location.reload();
+          break;
+      }
+    });
 
     console.debug("[panes] framebust-guard installed in", window.location.href);
   },
