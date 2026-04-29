@@ -1,7 +1,7 @@
 {
   "name": "panes",
   "description": "Split your tab into 2 or 4 panes.",
-  "version": "0.6.0",
+  "version": "0.9.10",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.15.1",
@@ -16,9 +16,11 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
+    "icons": "node scripts/render-icons.mjs",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/chrome": "^0.1.40",
     "typescript": "^5.6.3",
     "wxt": "^0.20.25"

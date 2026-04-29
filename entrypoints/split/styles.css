@@ -41,6 +41,7 @@ body {
   gap: var(--gap);
   padding: var(--gap);
   min-height: 0;
+  position: relative;
 }
 
 #split[data-layout="2"] {
@@ -74,6 +75,62 @@ body {
   height: 100%;
   border: 0;
   display: block;
+}
+
+.splitter {
+  position: absolute;
+  z-index: 5;
+}
+
+.splitter::before {
+  content: "";
+  position: absolute;
+  background: transparent;
+  transition: background-color 120ms ease;
+}
+
+.splitter--col {
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  margin-left: -4px;
+  cursor: col-resize;
+}
+
+.splitter--col::before {
+  inset: 0 3px;
+}
+
+.splitter--row {
+  left: 0;
+  right: 0;
+  height: 8px;
+  margin-top: -4px;
+  cursor: row-resize;
+}
+
+.splitter--row::before {
+  inset: 3px 0;
+}
+
+.splitter:hover::before,
+.splitter--dragging::before {
+  background: var(--pane-border-focused);
+}
+
+.splitter-drag-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: transparent;
+}
+
+.splitter-drag-overlay--col {
+  cursor: col-resize;
+}
+
+.splitter-drag-overlay--row {
+  cursor: row-resize;
 }
 
 #control-panel {
