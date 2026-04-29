@@ -3,11 +3,27 @@ import "./styles.css";
 type Layout = 2 | 4;
 
 const DEFAULT_PANE_URLS = [
-  "https://example.com",
+  "https://news.ycombinator.com/",
+  "https://github.com/",
   "https://en.wikipedia.org/wiki/Mosaic_(web_browser)",
-  "https://en.wikipedia.org/wiki/Tessellation",
-  "https://en.wikipedia.org/wiki/Stained_glass",
+  "https://stackoverflow.com/",
 ] as const;
+
+// Sandbox tokens permit normal site behavior (scripts, cookies, forms, popups,
+// modals) while withholding `allow-top-navigation` and its variants. The
+// browser blocks any top-frame navigation attempt at the platform level —
+// rock-solid against JS framebusters that beat content-script timing.
+const PANE_SANDBOX = [
+  "allow-scripts",
+  "allow-same-origin",
+  "allow-forms",
+  "allow-popups",
+  "allow-popups-to-escape-sandbox",
+  "allow-modals",
+  "allow-downloads",
+  "allow-presentation",
+  "allow-storage-access-by-user-activation",
+].join(" ");
 
 function readLayoutFromQuery(): Layout {
   const raw = new URLSearchParams(window.location.search).get("layout");
@@ -24,9 +40,10 @@ function buildPane(index: number): HTMLDivElement {
   pane.dataset.paneIndex = String(index);
 
   const iframe = document.createElement("iframe");
-  iframe.src = urlForPane(index);
+  iframe.setAttribute("sandbox", PANE_SANDBOX);
   iframe.dataset.paneIndex = String(index);
   iframe.referrerPolicy = "no-referrer-when-downgrade";
+  iframe.src = urlForPane(index);
 
   pane.appendChild(iframe);
   return pane;

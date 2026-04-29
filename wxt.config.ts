@@ -8,5 +8,11 @@ export default defineConfig({
     action: {
       default_title: "Open Panes",
     },
+    permissions: [
+      "declarativeNetRequest",
+      "declarativeNetRequestWithHostAccess",
+      "tabs",
+    ],
+    host_permissions: ["<all_urls>"],
   },
 });

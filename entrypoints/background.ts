@@ -1,8 +1,88 @@
+const SPLIT_PATH = "/split.html";
+
+const STRIPPED_RESPONSE_HEADERS = [
+  "x-frame-options",
+  "frame-options",
+  "content-security-policy",
+  "content-security-policy-report-only",
+] as const;
+
+function splitPagePrefix(): string {
+  return chrome.runtime.getURL(SPLIT_PATH);
+}
+
+function isSplitPageUrl(url: string | undefined): boolean {
+  return !!url && url.startsWith(splitPagePrefix());
+}
+
+async function addDnrRuleForTab(tabId: number): Promise<void> {
+  await chrome.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: [tabId],
+    addRules: [
+      {
+        id: tabId,
+        priority: 1,
+        action: {
+          type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+          responseHeaders: STRIPPED_RESPONSE_HEADERS.map((header) => ({
+            header,
+            operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE,
+          })),
+        },
+        condition: {
+          resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME],
+          tabIds: [tabId],
+        },
+      },
+    ],
+  });
+}
+
+async function removeDnrRuleForTab(tabId: number): Promise<void> {
+  await chrome.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: [tabId],
+  });
+}
+
+async function syncRulesAcrossTabs(): Promise<void> {
+  const tabs = await chrome.tabs.query({});
+  await Promise.all(
+    tabs.map(async (tab) => {
+      if (tab.id === undefined) return;
+      if (isSplitPageUrl(tab.url)) {
+        await addDnrRuleForTab(tab.id);
+      }
+    }),
+  );
+}
+
 export default defineBackground(() => {
   console.log("[panes] background service worker booted");
 
+  syncRulesAcrossTabs().catch((error) =>
+    console.error("[panes] sync rules failed", error),
+  );
+
   chrome.action.onClicked.addListener(async () => {
-    const url = chrome.runtime.getURL("/split.html?layout=4");
-    await chrome.tabs.create({ url });
+    const url = chrome.runtime.getURL(`${SPLIT_PATH}?layout=4`);
+    const tab = await chrome.tabs.create({ url });
+    if (tab.id !== undefined) {
+      await addDnrRuleForTab(tab.id);
+    }
+  });
+
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    removeDnrRuleForTab(tabId).catch(() => {
+      /* tab already gone */
+    });
+  });
+
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.url === undefined) return;
+    if (isSplitPageUrl(changeInfo.url)) {
+      addDnrRuleForTab(tabId).catch(() => {});
+    } else {
+      removeDnrRuleForTab(tabId).catch(() => {});
+    }
   });
 });
