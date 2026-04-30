@@ -100,10 +100,34 @@ function buildPane(index: number, url: string): HTMLDivElement {
   iframe.setAttribute("sandbox", PANE_SANDBOX);
   iframe.dataset.paneIndex = String(index);
   iframe.referrerPolicy = "no-referrer-when-downgrade";
-  iframe.src = url;
 
-  pane.appendChild(iframe);
+  const overlay = document.createElement("div");
+  overlay.className = "pane-loading";
+  overlay.textContent = "Loading…";
+
+  pane.append(iframe, overlay);
+  attachLoadingState(pane, iframe);
+  iframe.src = url;
   return pane;
+}
+
+// Cross-origin iframes don't expose a reliable error event, so we treat
+// `load` as the universal "page reached a final state" signal — including
+// browser error pages — and just stop showing the overlay. The 300ms delay
+// avoids flashing the overlay on fast loads.
+function attachLoadingState(
+  pane: HTMLElement,
+  iframe: HTMLIFrameElement,
+): void {
+  const timer = window.setTimeout(() => {
+    pane.classList.add("pane--loading");
+  }, 300);
+  const onLoad = (): void => {
+    window.clearTimeout(timer);
+    pane.classList.remove("pane--loading");
+    iframe.removeEventListener("load", onLoad);
+  };
+  iframe.addEventListener("load", onLoad);
 }
 
 function renderLayout(
@@ -266,6 +290,8 @@ function navigateFocused(state: State, rawInput: string): void {
   if (!url) return;
   const iframe = focusedIframe(state);
   if (!iframe) return;
+  const pane = iframe.closest<HTMLElement>(".pane");
+  if (pane) attachLoadingState(pane, iframe);
   iframe.src = url;
   state.panel.bindToPane(state.focusedIndex, url);
 }

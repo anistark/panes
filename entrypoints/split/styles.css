@@ -77,6 +77,24 @@ body {
   display: block;
 }
 
+.pane-loading {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: var(--bar-bg);
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.pane--loading .pane-loading {
+  display: flex;
+}
+
 .splitter {
   position: absolute;
   z-index: 5;
