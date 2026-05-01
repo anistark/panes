@@ -41,12 +41,18 @@ type Mods = {
   shift: boolean;
 };
 
+type PaneMeta = {
+  url: string;
+  title: string;
+};
+
 type State = {
   rootSplit: HTMLElement;
   panel: ControlPanel;
   splitters: SplitterController;
   layout: Layout;
   focusedIndex: number;
+  paneMeta: Map<number, PaneMeta>;
 };
 
 function readLayoutFromQuery(): Layout | null {
@@ -156,8 +162,17 @@ function focusedIframe(state: State): HTMLIFrameElement | null {
   );
 }
 
+function liveUrlForPane(state: State, index: number): string {
+  const meta = state.paneMeta.get(index);
+  if (meta?.url) return meta.url;
+  const iframe = state.rootSplit.querySelector<HTMLIFrameElement>(
+    `iframe[data-pane-index="${index}"]`,
+  );
+  return iframe?.src ?? "";
+}
+
 function focusedUrl(state: State): string {
-  return focusedIframe(state)?.src ?? "";
+  return liveUrlForPane(state, state.focusedIndex);
 }
 
 function setFocusedPane(state: State, index: number): void {
@@ -168,7 +183,32 @@ function setFocusedPane(state: State, index: number): void {
       Number(pane.dataset.paneIndex) === index,
     );
   }
-  state.panel.bindToPane(index, focusedUrl(state));
+  state.panel.bindToPane(index, liveUrlForPane(state, index));
+  syncBrowserChrome(state);
+}
+
+function syncBrowserChrome(state: State): void {
+  const meta = state.paneMeta.get(state.focusedIndex);
+  const url = meta?.url || liveUrlForPane(state, state.focusedIndex);
+  const title = meta?.title?.trim() ?? "";
+  const label = title || hostnameOf(url) || "Split";
+  document.title = `Panes — ${label}`;
+
+  // Address bar can only be rewritten same-origin, so we encode the focused
+  // pane's URL into the hash. The chrome-extension://…/split.html prefix
+  // stays, but the visible URL now hints at what's in the focused pane.
+  const targetHash = url ? "#" + encodeURI(url) : "";
+  if (window.location.hash !== targetHash) {
+    history.replaceState(null, "", `${window.location.pathname}${window.location.search}${targetHash}`);
+  }
+}
+
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
 }
 
 function wireFocusTracking(state: State): void {
@@ -195,26 +235,58 @@ function sendToFocusedPane(state: State, command: PanesCommand): void {
   focusedIframe(state)?.contentWindow?.postMessage(command, "*");
 }
 
-function wireOpenAsTabBridge(state: State): void {
+function wireIframeBridge(state: State): void {
   window.addEventListener("message", (event) => {
-    const data = event.data as { type?: unknown; url?: unknown } | null;
-    if (!data || data.type !== "panes:open-as-tab") return;
-    if (typeof data.url !== "string") return;
-    if (!isMessageFromOurPane(state, event.source)) return;
-    void chrome.tabs.create({ url: data.url });
+    const data = event.data as
+      | { type?: unknown; url?: unknown; title?: unknown }
+      | null;
+    if (!data || typeof data.type !== "string") return;
+    const paneIndex = paneIndexForSource(state, event.source);
+    if (paneIndex === null) return;
+
+    switch (data.type) {
+      case "panes:focus":
+        setFocusedPane(state, paneIndex);
+        break;
+      case "panes:open-as-tab":
+        if (typeof data.url === "string") {
+          void chrome.tabs.create({ url: data.url });
+        }
+        break;
+      case "panes:meta":
+        if (typeof data.url !== "string" || typeof data.title !== "string") {
+          break;
+        }
+        state.paneMeta.set(paneIndex, { url: data.url, title: data.title });
+        if (paneIndex === state.focusedIndex) {
+          state.panel.bindToPane(paneIndex, data.url);
+          syncBrowserChrome(state);
+        }
+        break;
+    }
   });
+}
+
+function paneIndexForSource(
+  state: State,
+  source: MessageEventSource | null,
+): number | null {
+  if (!source) return null;
+  const iframes = state.rootSplit.querySelectorAll<HTMLIFrameElement>("iframe");
+  for (const iframe of iframes) {
+    if (iframe.contentWindow === source) {
+      const idx = Number(iframe.dataset.paneIndex);
+      return Number.isFinite(idx) ? idx : null;
+    }
+  }
+  return null;
 }
 
 function isMessageFromOurPane(
   state: State,
   source: MessageEventSource | null,
 ): boolean {
-  if (!source) return false;
-  const iframes = state.rootSplit.querySelectorAll<HTMLIFrameElement>("iframe");
-  for (const iframe of iframes) {
-    if (iframe.contentWindow === source) return true;
-  }
-  return false;
+  return paneIndexForSource(state, source) !== null;
 }
 
 function applyLayout(state: State, layout: Layout, urls: string[]): void {
@@ -222,6 +294,14 @@ function applyLayout(state: State, layout: Layout, urls: string[]): void {
   renderLayout(state.rootSplit, layout, urls);
   state.splitters.setLayout(layout);
   state.panel.setLayout(layout);
+  // Iframes are recreated on render — drop stale meta and let the content
+  // script re-announce on load. Pre-seed with the URL we're loading so the
+  // address bar/title don't flash empty during the gap.
+  state.paneMeta.clear();
+  for (let i = 0; i < layout; i++) {
+    const url = urls[i] ?? defaultUrlForPane(i);
+    state.paneMeta.set(i, { url, title: "" });
+  }
   setFocusedPane(state, Math.min(state.focusedIndex, layout - 1));
   persistLayout(layout);
 }
@@ -293,7 +373,11 @@ function navigateFocused(state: State, rawInput: string): void {
   const pane = iframe.closest<HTMLElement>(".pane");
   if (pane) attachLoadingState(pane, iframe);
   iframe.src = url;
+  // Pre-seed meta so the address bar/title update immediately; the content
+  // script will refresh title/url once the page loads.
+  state.paneMeta.set(state.focusedIndex, { url, title: "" });
   state.panel.bindToPane(state.focusedIndex, url);
+  syncBrowserChrome(state);
 }
 
 function normalizeUrl(input: string): string {
@@ -414,12 +498,18 @@ async function main(): Promise<void> {
 
   const splitters = attachSplitters(rootSplit, layout);
 
+  const paneMeta = new Map<number, PaneMeta>();
+  for (let i = 0; i < layout; i++) {
+    paneMeta.set(i, { url: initialUrls[i] ?? "", title: "" });
+  }
+
   const state: State = {
     rootSplit,
     panel: undefined as unknown as ControlPanel,
     splitters,
     layout,
     focusedIndex: 0,
+    paneMeta,
   };
 
   state.panel = createControlPanel(panelEl, layout, {
@@ -434,7 +524,7 @@ async function main(): Promise<void> {
 
   setFocusedPane(state, 0);
   wireFocusTracking(state);
-  wireOpenAsTabBridge(state);
+  wireIframeBridge(state);
   wireKeyboardShortcuts(state);
 
   persistLayout(layout);
