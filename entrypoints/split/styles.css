@@ -11,7 +11,7 @@
   --text: #ccc;
   --text-input-bg: #15151a;
   --gap: 4px;
-  --bar-height: 32px;
+  --bar-height: 40px;
 }
 
 * {
@@ -31,7 +31,7 @@ body {
 
 body {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr;
 }
 
 #split {
@@ -154,11 +154,11 @@ body {
 #control-panel {
   height: var(--bar-height);
   background: var(--bar-bg);
-  border-top: 1px solid var(--pane-border);
+  border-bottom: 1px solid var(--pane-border);
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 8px;
+  padding: 0 10px;
   font-size: 11px;
   color: var(--text-muted);
   user-select: none;
