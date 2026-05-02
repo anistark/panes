@@ -1,4 +1,4 @@
-# Panes — Split Tab Layouts
+# ![Panes — 4-pane layout](public/icon/icon.svg) Panes — Split Tab Layouts
 
 Split a Chrome tab into 2 or 4 simultaneous web pages, with shared controls in
 a single bottom bar. Like Chrome's native split view, but with more panes and a
