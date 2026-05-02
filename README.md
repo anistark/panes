@@ -4,7 +4,7 @@ Split a Chrome tab into 2 or 4 simultaneous web pages, with shared controls in
 a single bottom bar. Like Chrome's native split view, but with more panes and a
 lot more keyboard.
 
-![Panes — 4-pane layout](docs/screenshot-4pane.png)
+![Panes — 4-pane layout](docs/panes-demo.gif)
 
 ## Status
 
