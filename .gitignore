@@ -16,6 +16,8 @@ npm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+.pi
+.claude
 
 # Env
 .env
