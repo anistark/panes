@@ -8,13 +8,6 @@ import { showCollapseModal } from "./collapse-modal";
 import { showUndoToast } from "./toast";
 import { attachSplitters, type SplitterController } from "./splitters";
 
-const DEFAULT_PANE_URLS = [
-  "https://news.ycombinator.com/",
-  "https://github.com/",
-  "https://en.wikipedia.org/wiki/Mosaic_(web_browser)",
-  "https://stackoverflow.com/",
-] as const;
-
 const PANE_SANDBOX = [
   "allow-scripts",
   "allow-same-origin",
@@ -89,32 +82,67 @@ function readPaneUrlOverride(index: number): string | undefined {
   return param ?? undefined;
 }
 
-function defaultUrlForPane(index: number): string {
-  return DEFAULT_PANE_URLS[index] ?? "about:blank";
-}
-
 function initialUrlForPane(index: number): string {
-  return readPaneUrlOverride(index) ?? defaultUrlForPane(index);
+  return readPaneUrlOverride(index) ?? "";
 }
 
 function buildPane(index: number, url: string): HTMLDivElement {
   const pane = document.createElement("div");
   pane.className = "pane";
   pane.dataset.paneIndex = String(index);
+  pane.dataset.paneUrl = url;
 
+  if (url) {
+    const iframe = buildIframe(index, url);
+    pane.append(iframe, buildLoadingOverlay());
+    attachLoadingState(pane, iframe);
+  } else {
+    pane.classList.add("pane--empty");
+    pane.append(buildEmptyState(index));
+  }
+  return pane;
+}
+
+function buildIframe(index: number, url: string): HTMLIFrameElement {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("sandbox", PANE_SANDBOX);
   iframe.dataset.paneIndex = String(index);
   iframe.referrerPolicy = "no-referrer-when-downgrade";
+  iframe.src = url;
+  return iframe;
+}
 
+function buildLoadingOverlay(): HTMLDivElement {
   const overlay = document.createElement("div");
   overlay.className = "pane-loading";
   overlay.textContent = "Loading…";
+  return overlay;
+}
 
-  pane.append(iframe, overlay);
-  attachLoadingState(pane, iframe);
-  iframe.src = url;
-  return pane;
+function buildEmptyState(index: number): HTMLDivElement {
+  const wrap = document.createElement("div");
+  wrap.className = "pane-empty";
+
+  const logo = document.createElement("img");
+  logo.className = "pane-empty-logo";
+  logo.src = chrome.runtime.getURL("/icon/icon-128.png");
+  logo.alt = "";
+
+  const brand = document.createElement("div");
+  brand.className = "pane-empty-brand";
+  brand.textContent = "Panes";
+
+  const label = document.createElement("div");
+  label.className = "pane-empty-label";
+  label.textContent = `Pane ${index + 1}`;
+
+  const hint = document.createElement("div");
+  hint.className = "pane-empty-hint";
+  hint.textContent =
+    "Click a pane, type a URL above, and press Enter. Switch between 2 and 4 panes anytime.";
+
+  wrap.append(logo, brand, label, hint);
+  return wrap;
 }
 
 // Cross-origin iframes don't expose a reliable error event, so we treat
@@ -146,14 +174,13 @@ function renderLayout(
   // `#split` and must survive a re-render.
   rootSplit.querySelectorAll(".pane").forEach((pane) => pane.remove());
   for (let i = 0; i < layout; i++) {
-    const url = urls[i] ?? defaultUrlForPane(i);
-    rootSplit.appendChild(buildPane(i, url));
+    rootSplit.appendChild(buildPane(i, urls[i] ?? ""));
   }
 }
 
 function readPaneUrls(rootSplit: HTMLElement): string[] {
-  const iframes = rootSplit.querySelectorAll<HTMLIFrameElement>("iframe");
-  return Array.from(iframes).map((iframe) => iframe.src);
+  const panes = rootSplit.querySelectorAll<HTMLElement>(".pane");
+  return Array.from(panes).map((pane) => pane.dataset.paneUrl ?? "");
 }
 
 function focusedIframe(state: State): HTMLIFrameElement | null {
@@ -165,10 +192,10 @@ function focusedIframe(state: State): HTMLIFrameElement | null {
 function liveUrlForPane(state: State, index: number): string {
   const meta = state.paneMeta.get(index);
   if (meta?.url) return meta.url;
-  const iframe = state.rootSplit.querySelector<HTMLIFrameElement>(
-    `iframe[data-pane-index="${index}"]`,
+  const pane = state.rootSplit.querySelector<HTMLElement>(
+    `.pane[data-pane-index="${index}"]`,
   );
-  return iframe?.src ?? "";
+  return pane?.dataset.paneUrl ?? "";
 }
 
 function focusedUrl(state: State): string {
@@ -191,8 +218,8 @@ function syncBrowserChrome(state: State): void {
   const meta = state.paneMeta.get(state.focusedIndex);
   const url = meta?.url || liveUrlForPane(state, state.focusedIndex);
   const title = meta?.title?.trim() ?? "";
-  const label = title || hostnameOf(url) || "Split";
-  document.title = `Panes — ${label}`;
+  const label = title || hostnameOf(url);
+  document.title = label ? `Panes — ${label}` : "Panes";
 
   // Address bar can only be rewritten same-origin, so we encode the focused
   // pane's URL into the hash. The chrome-extension://…/split.html prefix
@@ -258,6 +285,10 @@ function wireIframeBridge(state: State): void {
           break;
         }
         state.paneMeta.set(paneIndex, { url: data.url, title: data.title });
+        const pane = state.rootSplit.querySelector<HTMLElement>(
+          `.pane[data-pane-index="${paneIndex}"]`,
+        );
+        if (pane) pane.dataset.paneUrl = data.url;
         if (paneIndex === state.focusedIndex) {
           state.panel.bindToPane(paneIndex, data.url);
           syncBrowserChrome(state);
@@ -299,8 +330,7 @@ function applyLayout(state: State, layout: Layout, urls: string[]): void {
   // address bar/title don't flash empty during the gap.
   state.paneMeta.clear();
   for (let i = 0; i < layout; i++) {
-    const url = urls[i] ?? defaultUrlForPane(i);
-    state.paneMeta.set(i, { url, title: "" });
+    state.paneMeta.set(i, { url: urls[i] ?? "", title: "" });
   }
   setFocusedPane(state, Math.min(state.focusedIndex, layout - 1));
   persistLayout(layout);
@@ -310,11 +340,9 @@ async function switchLayout(state: State, target: Layout): Promise<void> {
   if (target === state.layout) return;
 
   if (target === 4 && state.layout === 2) {
-    // 2 → 4 is non-destructive; preserve current panes and add defaults.
+    // 2 → 4 is non-destructive; preserve current panes and leave the rest empty.
     const currentUrls = readPaneUrls(state.rootSplit);
-    const nextUrls = Array.from({ length: 4 }, (_, i) =>
-      currentUrls[i] ?? defaultUrlForPane(i),
-    );
+    const nextUrls = Array.from({ length: 4 }, (_, i) => currentUrls[i] ?? "");
     applyLayout(state, 4, nextUrls);
     return;
   }
@@ -343,9 +371,7 @@ async function collapseTo2(
   });
   if (!result) return;
 
-  const keptUrls = result.keptIndices.map(
-    (i) => urls[i] ?? defaultUrlForPane(i),
-  );
+  const keptUrls = result.keptIndices.map((i) => urls[i] ?? "");
   const discardedUrls = urls.filter(
     (_, i) => !result.keptIndices.includes(i),
   );
@@ -356,7 +382,7 @@ async function collapseTo2(
 
   if (result.openDiscardedAsTabs) {
     for (const url of discardedUrls) {
-      void chrome.tabs.create({ url, active: false });
+      if (url) void chrome.tabs.create({ url, active: false });
     }
   }
 
@@ -368,11 +394,23 @@ async function collapseTo2(
 function navigateFocused(state: State, rawInput: string): void {
   const url = normalizeUrl(rawInput);
   if (!url) return;
-  const iframe = focusedIframe(state);
-  if (!iframe) return;
-  const pane = iframe.closest<HTMLElement>(".pane");
-  if (pane) attachLoadingState(pane, iframe);
-  iframe.src = url;
+  const pane = state.rootSplit.querySelector<HTMLElement>(
+    `.pane[data-pane-index="${state.focusedIndex}"]`,
+  );
+  if (!pane) return;
+
+  pane.dataset.paneUrl = url;
+  const existingIframe = pane.querySelector<HTMLIFrameElement>("iframe");
+  if (existingIframe) {
+    attachLoadingState(pane, existingIframe);
+    existingIframe.src = url;
+  } else {
+    pane.classList.remove("pane--empty");
+    pane.querySelector(".pane-empty")?.remove();
+    const iframe = buildIframe(state.focusedIndex, url);
+    pane.append(iframe, buildLoadingOverlay());
+    attachLoadingState(pane, iframe);
+  }
   // Pre-seed meta so the address bar/title update immediately; the content
   // script will refresh title/url once the page loads.
   state.paneMeta.set(state.focusedIndex, { url, title: "" });

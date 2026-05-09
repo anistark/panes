@@ -49,7 +49,7 @@ export function showCollapseModal(
 
       const urlLabel = document.createElement("span");
       urlLabel.className = "modal-pane-url";
-      urlLabel.textContent = url;
+      urlLabel.textContent = url || "(empty)";
 
       card.append(checkbox, indexLabel, urlLabel);
       grid.appendChild(card);

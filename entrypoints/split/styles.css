@@ -95,6 +95,54 @@ body {
   display: flex;
 }
 
+.pane--empty {
+  background: var(--bar-bg);
+}
+
+.pane-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.pane-empty-logo {
+  width: 56px;
+  height: 56px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+
+.pane-empty-brand {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+.pane-empty-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.pane-empty-hint {
+  margin-top: 6px;
+  max-width: 280px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
 .splitter {
   position: absolute;
   z-index: 5;
