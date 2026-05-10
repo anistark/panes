@@ -4,15 +4,14 @@ Split a Chrome tab into 2 or 4 simultaneous web pages, with shared controls in
 a single bottom bar. Like Chrome's native split view, but with more panes and a
 lot more keyboard.
 
-![Panes — 4-pane layout](docs/panes-demo.gif)
+![Panes — 4-pane layout](docs/assets/panes-demo.gif)
 
 ## Status
 
-Pre-release. Currently `v0.10.x` — feature-complete for the v1.0 scope; final
-polish (screenshots, store assets, manual QA) is in progress before submission
-to the Chrome Web Store.
+`v1.0.0` — first public release. Submission to the Chrome Web Store is
+pending; in the meantime, install unpacked using the steps below.
 
-## Install (unpacked, until v1.0)
+## Install (unpacked)
 
 1. `pnpm install`
 2. `pnpm build` — produces `output/chrome-mv3/`.
@@ -93,4 +92,4 @@ Project notes for contributors live in [AGENTS.md](AGENTS.md).
 
 ## License
 
-TBD before v1.0.0.
+[Apache License 2.0](LICENSE). Copyright © 2026 Kumar Anirudha.
