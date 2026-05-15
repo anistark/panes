@@ -4,14 +4,16 @@ Split a Chrome tab into 2 or 4 simultaneous web pages, with shared controls in
 a single bottom bar. Like Chrome's native split view, but with more panes and a
 lot more keyboard.
 
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/aejjbaaipmplkdgngohnplmplbfhjdjd?label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/aejjbaaipmplkdgngohnplmplbfhjdjd)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+
 ![Panes — 4-pane layout](docs/assets/panes-demo.gif)
 
-## Status
+## Install
 
-`v1.0.0` — first public release. Submission to the Chrome Web Store is
-pending; in the meantime, install unpacked using the steps below.
+**[Get Panes on the Chrome Web Store →](https://chromewebstore.google.com/detail/aejjbaaipmplkdgngohnplmplbfhjdjd)**
 
-## Install (unpacked)
+### Install unpacked (development)
 
 1. `pnpm install`
 2. `pnpm build` — produces `output/chrome-mv3/`.
@@ -84,7 +86,7 @@ pnpm install
 pnpm dev          # WXT dev mode with auto-reload
 pnpm build        # production build → output/chrome-mv3/
 pnpm compile      # type-check only
-pnpm zip          # zipped extension for store submission
+pnpm zip          # zipped extension for store upload
 pnpm icons        # re-render PNG icons from public/icon/icon.svg
 ```
 

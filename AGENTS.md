@@ -35,7 +35,7 @@ The full design is in [`plan/design.md`](plan/design.md). The execution plan and
 ```
 panes/
 ├── AGENTS.md                  ← you are here
-├── README.md                  (TBD — write before v1.0.0)
+├── README.md                  user-facing docs, install, usage, shortcuts
 ├── package.json               scripts, deps, engine pin
 ├── tsconfig.json              strict TS, extends WXT's generated config
 ├── wxt.config.ts              extension manifest + WXT options
@@ -67,7 +67,7 @@ pnpm install          # install deps (uses pnpm-lock.yaml)
 ```
 
 **Loading the extension during development:**
-1. Build with `npm run build` (or run `npm run dev` for auto-reload).
+1. Build with `pnpm build` (or run `pnpm dev` for auto-reload).
 2. `chrome://extensions/` → enable Developer mode → **Load unpacked** → pick `output/chrome-mv3/`.
 3. The service worker console is reachable via the **"service worker"** link on the extension's card.
 
