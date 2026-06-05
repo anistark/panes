@@ -1,3 +1,5 @@
+import { clearTabState } from "./split/persistence";
+
 const SPLIT_PATH = "/split.html";
 
 const STRIPPED_RESPONSE_HEADERS = [
@@ -104,6 +106,7 @@ export default defineBackground(() => {
     removeDnrRuleForTab(tabId).catch(() => {
       /* tab already gone */
     });
+    void clearTabState(tabId);
   });
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {

@@ -1,6 +1,6 @@
 # Panes — Privacy Policy
 
-_Last updated: 2026-04-30_
+_Last updated: 2026-06-05_
 
 ## Summary
 
@@ -10,19 +10,23 @@ telemetry, no remote logging, and no third-party services involved.
 
 ## What data Panes stores
 
-The only data Panes writes is a single value in
-[`chrome.storage.local`](https://developer.chrome.com/docs/extensions/reference/api/storage):
+Panes writes two kinds of data, both stored locally in your browser via
+[`chrome.storage`](https://developer.chrome.com/docs/extensions/reference/api/storage):
 
-| Key | Value | Purpose |
-| --- | ----- | ------- |
-| `lastLayout` | `2` or `4` | Restores your most recent layout (2- or 4-pane) the next time you open a split tab. |
+| Key | Storage area | Value | Purpose |
+| --- | --- | ----- | ------- |
+| `lastLayout` | `local` | `2` or `4` | Restores your most recent layout (2- or 4-pane) the next time you open a split tab. |
+| `paneState:<tabId>` | `session` | The open split tab's layout, the URL loaded in each pane, the focused pane, and the splitter sizes. | Lets a split tab restore itself if you reload it. |
 
-This value never leaves your device. It is also wiped if you uninstall
-the extension or clear your Chrome local storage.
+`chrome.storage.session` is in-memory only: the per-tab entries are
+wiped when you close the split tab, when Chrome restarts, and when you
+uninstall the extension. Neither value ever leaves your device — there
+is no server, sync, or transmission of any kind.
 
 ## What data Panes does **not** store
 
-- The URLs you visit inside panes
+- A history of URLs you visit — only the URL currently loaded in each
+  pane of an open split tab, kept locally so the tab survives a reload
 - The content of any page you load
 - Login credentials, cookies, or session tokens (those remain in your
   browser's normal cookie jar; Panes never reads them)
@@ -63,7 +67,8 @@ The URL is used in-process only and never persisted or transmitted.
 
 ### `storage`
 
-Used solely to write the `lastLayout` value described above.
+Used solely to write the `lastLayout` and `paneState:<tabId>` values
+described above. Both stay on your device.
 
 ### `host_permissions: ["<all_urls>"]`
 

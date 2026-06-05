@@ -7,6 +7,12 @@ import {
 import { showCollapseModal } from "./collapse-modal";
 import { showUndoToast } from "./toast";
 import { attachSplitters, type SplitterController } from "./splitters";
+import {
+  currentTabId,
+  loadTabState,
+  saveTabState,
+  type PaneTabSnapshot,
+} from "./persistence";
 
 const PANE_SANDBOX = [
   "allow-scripts",
@@ -46,6 +52,7 @@ type State = {
   layout: Layout;
   focusedIndex: number;
   paneMeta: Map<number, PaneMeta>;
+  tabId: number | null;
 };
 
 function readLayoutFromQuery(): Layout | null {
@@ -73,6 +80,31 @@ function persistLayout(layout: Layout): void {
   } catch (error) {
     console.warn("[panes] storage write failed", error);
   }
+}
+
+let saveTimer: number | undefined;
+
+function scheduleTabStateSave(state: State): void {
+  if (state.tabId === null) return;
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    if (state.tabId !== null) {
+      void saveTabState(state.tabId, snapshotState(state));
+    }
+  }, 300);
+}
+
+function snapshotState(state: State): PaneTabSnapshot {
+  const ratios = state.splitters.getRatios();
+  return {
+    layout: state.layout,
+    urls: Array.from({ length: state.layout }, (_, i) =>
+      liveUrlForPane(state, i),
+    ),
+    focusedIndex: state.focusedIndex,
+    colRatio: ratios.col,
+    rowRatio: ratios.row,
+  };
 }
 
 function readPaneUrlOverride(index: number): string | undefined {
@@ -212,6 +244,7 @@ function setFocusedPane(state: State, index: number): void {
   }
   state.panel.bindToPane(index, liveUrlForPane(state, index));
   syncBrowserChrome(state);
+  scheduleTabStateSave(state);
 }
 
 function syncBrowserChrome(state: State): void {
@@ -293,6 +326,7 @@ function wireIframeBridge(state: State): void {
           state.panel.bindToPane(paneIndex, data.url);
           syncBrowserChrome(state);
         }
+        scheduleTabStateSave(state);
         break;
     }
   });
@@ -334,6 +368,7 @@ function applyLayout(state: State, layout: Layout, urls: string[]): void {
   }
   setFocusedPane(state, Math.min(state.focusedIndex, layout - 1));
   persistLayout(layout);
+  scheduleTabStateSave(state);
 }
 
 async function switchLayout(state: State, target: Layout): Promise<void> {
@@ -416,6 +451,7 @@ function navigateFocused(state: State, rawInput: string): void {
   state.paneMeta.set(state.focusedIndex, { url, title: "" });
   state.panel.bindToPane(state.focusedIndex, url);
   syncBrowserChrome(state);
+  scheduleTabStateSave(state);
 }
 
 function normalizeUrl(input: string): string {
@@ -528,27 +564,40 @@ async function main(): Promise<void> {
   const panelEl = document.getElementById("control-panel");
   if (!rootSplit || !panelEl) throw new Error("missing root elements");
 
-  const layout = await readInitialLayout();
-  const initialUrls = Array.from({ length: layout }, (_, i) =>
-    initialUrlForPane(i),
+  const tabId = await currentTabId();
+  const restored = tabId !== null ? await loadTabState(tabId) : null;
+
+  const layout = restored?.layout ?? (await readInitialLayout());
+  const initialUrls = Array.from(
+    { length: layout },
+    (_, i) => restored?.urls[i] ?? initialUrlForPane(i),
   );
+  const initialFocus = restored
+    ? Math.min(Math.max(restored.focusedIndex, 0), layout - 1)
+    : 0;
+
   renderLayout(rootSplit, layout, initialUrls);
-
-  const splitters = attachSplitters(rootSplit, layout);
-
-  const paneMeta = new Map<number, PaneMeta>();
-  for (let i = 0; i < layout; i++) {
-    paneMeta.set(i, { url: initialUrls[i] ?? "", title: "" });
-  }
 
   const state: State = {
     rootSplit,
     panel: undefined as unknown as ControlPanel,
-    splitters,
+    splitters: undefined as unknown as SplitterController,
     layout,
-    focusedIndex: 0,
-    paneMeta,
+    focusedIndex: initialFocus,
+    paneMeta: new Map(),
+    tabId,
   };
+
+  state.splitters = attachSplitters(rootSplit, layout, {
+    initialRatios: restored
+      ? { col: restored.colRatio, row: restored.rowRatio }
+      : undefined,
+    onChange: () => scheduleTabStateSave(state),
+  });
+
+  for (let i = 0; i < layout; i++) {
+    state.paneMeta.set(i, { url: initialUrls[i] ?? "", title: "" });
+  }
 
   state.panel = createControlPanel(panelEl, layout, {
     onBack: () => sendToFocusedPane(state, { type: "panes:back" }),
@@ -560,12 +609,13 @@ async function main(): Promise<void> {
     onNavigate: (url) => navigateFocused(state, url),
   });
 
-  setFocusedPane(state, 0);
+  setFocusedPane(state, initialFocus);
   wireFocusTracking(state);
   wireIframeBridge(state);
   wireKeyboardShortcuts(state);
 
   persistLayout(layout);
+  scheduleTabStateSave(state);
 }
 
 void main();

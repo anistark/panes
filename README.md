@@ -34,6 +34,10 @@ lot more keyboard.
 - `⤴` pops the focused pane out into a real Chrome tab.
 - `✕` closes the focused pane (4-pane mode only).
 - Drag the splitter between panes to resize. Double-click resets to 50/50.
+- Reloading a split tab restores it as you left it — layout, the page in each
+  pane, the focused pane, and the splitter sizes all come back. (Restoring after
+  a full browser restart is best-effort; the tab falls back to the page it was
+  originally opened with.)
 
 ## Keyboard shortcuts
 
@@ -72,9 +76,11 @@ If a pane is misbehaving, pop it out — that's always one click away.
 
 ## Privacy
 
-Panes does not collect, transmit, or share any data. The only thing it stores
-locally is your last-used layout (`2` or `4`). See [PRIVACY.md](PRIVACY.md)
-for details, including a permission-by-permission breakdown.
+Panes does not collect, transmit, or share any data. Everything it stores stays
+on your device: your last-used layout (`2` or `4`), plus each open split tab's
+layout and pane URLs so the tab can survive a reload (kept in session storage,
+wiped on browser restart). See [PRIVACY.md](PRIVACY.md) for details, including a
+permission-by-permission breakdown.
 
 ## Development
 
