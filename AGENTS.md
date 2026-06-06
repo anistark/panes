@@ -87,8 +87,9 @@ The manifest lives in `wxt.config.ts` under `defineConfig({ manifest: { ... } })
 ### Storage
 
 - `chrome.storage.local` for last-used layout (v0).
+- `chrome.storage.session` for per-split-tab state (v1.1) — keyed by tab id (`paneState:<tabId>`), holds layout + per-pane URLs + focused pane + splitter ratios. Session (not local) so reused tab ids can't inherit stale panes across a browser restart. Access via the typed wrapper in `entrypoints/split/persistence.ts`.
 - `chrome.storage.sync` is reserved for v2 named presets — don't use it earlier.
-- Always go through a typed wrapper in `src/shared/storage.ts` (when it exists) rather than calling `chrome.storage.*` directly from feature code.
+- Prefer the typed wrappers (e.g. `entrypoints/split/persistence.ts`) over calling `chrome.storage.*` directly from feature code.
 
 ### MV3 service worker
 

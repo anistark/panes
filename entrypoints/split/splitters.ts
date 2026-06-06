@@ -1,9 +1,19 @@
 import type { Layout } from "./control-panel";
 
+export type Ratios = { col: number; row: number };
+
 export type SplitterController = {
   setLayout: (layout: Layout) => void;
+  getRatios: () => Ratios;
+  setRatios: (ratios: Ratios) => void;
   refresh: () => void;
   destroy: () => void;
+};
+
+export type SplitterOptions = {
+  minPaneSizePx?: number;
+  initialRatios?: Ratios;
+  onChange?: () => void;
 };
 
 const DEFAULT_MIN_PANE_PX = 240;
@@ -11,11 +21,12 @@ const DEFAULT_MIN_PANE_PX = 240;
 export function attachSplitters(
   rootSplit: HTMLElement,
   initialLayout: Layout,
-  minPaneSizePx: number = DEFAULT_MIN_PANE_PX,
+  options: SplitterOptions = {},
 ): SplitterController {
+  const minPaneSizePx = options.minPaneSizePx ?? DEFAULT_MIN_PANE_PX;
   let layout: Layout = initialLayout;
-  let colRatio = 0.5;
-  let rowRatio = 0.5;
+  let colRatio = normalizeRatio(options.initialRatios?.col);
+  let rowRatio = normalizeRatio(options.initialRatios?.row);
   let colSplitter: HTMLElement | null = null;
   let rowSplitter: HTMLElement | null = null;
   let dragOverlay: HTMLElement | null = null;
@@ -35,6 +46,15 @@ export function attachSplitters(
     setLayout(newLayout: Layout): void {
       layout = newLayout;
       ensureSplitters();
+      applyGrid();
+      refresh();
+    },
+    getRatios(): Ratios {
+      return { col: colRatio, row: rowRatio };
+    },
+    setRatios(ratios: Ratios): void {
+      colRatio = normalizeRatio(ratios.col);
+      rowRatio = normalizeRatio(ratios.row);
       applyGrid();
       refresh();
     },
@@ -138,6 +158,7 @@ export function attachSplitters(
       splitter.removeEventListener("pointercancel", onUp);
       dragOverlay?.remove();
       dragOverlay = null;
+      options.onChange?.();
     };
 
     splitter.addEventListener("pointermove", onMove);
@@ -158,7 +179,12 @@ export function attachSplitters(
     else rowRatio = 0.5;
     applyGrid();
     refresh();
+    options.onChange?.();
   }
+}
+
+function normalizeRatio(value: number | undefined): number {
+  return typeof value === "number" && value > 0 && value < 1 ? value : 0.5;
 }
 
 function readSpacing(el: HTMLElement): { padding: number; gap: number } {
